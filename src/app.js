@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require("express");
 const { connectDB } = require('./config/db');
+const authRoutes = require('./routes/authRoutes');
 
 const app = express();
 
@@ -15,6 +16,9 @@ connectDB();
 app.get("/", (req, res) => {
   res.send("Authentication System Running");
 });
+
+// API Routes
+app.use('/api/auth', authRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
