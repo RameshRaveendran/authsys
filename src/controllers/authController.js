@@ -1,19 +1,68 @@
 const User = require('../models/User');
+const OTP = require('../models/OTP');
 const { hashPassword, comparePassword } = require('../utils/passwordUtils');
+const { generateOTP, getOTPExpiration, isOTPValid } = require('../utils/otpUtils');
 
 /**
  * Register a new user
  * POST /api/auth/register
+ * Flow:
+ * 1. Validate input
+ * 2. Hash password
+ * 3. Create user
+ * 4. Generate OTP
+ * 5. Store OTP
  */
 const register = async (req, res) => {
   try {
-    const { name, email, phone, password } = req.body;
+    const { name, email, phone, password, confirmPassword } = req.body;
 
-    // Validation
-    if (!name || !email || !phone || !password) {
+    // STEP 1: Validate input
+    if (!name || !email || !phone || !password || !confirmPassword) {
       return res.status(400).json({
         success: false,
         message: 'Please provide all required fields',
+      });
+    }
+
+    // Validate name length
+    if (name.length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'Name must be at least 2 characters',
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide a valid email',
+      });
+    }
+
+    // Validate phone
+    if (!/^[0-9]{10}$/.test(phone)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone must be 10 digits',
+      });
+    }
+
+    // Validate password match
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Passwords do not match',
+      });
+    }
+
+    // Validate password strength
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters',
       });
     }
 
@@ -26,27 +75,177 @@ const register = async (req, res) => {
       });
     }
 
-    // Hash password
+    // STEP 2: Hash password
     const passwordHash = await hashPassword(password);
 
-    // Create new user
+    // STEP 3: Create new user
     const user = await User.create({
       name,
       email,
       phone,
       passwordHash,
+      isVerified: false,
     });
+
+    // STEP 4: Generate OTP
+    const otp = generateOTP();
+    const expiresAt = getOTPExpiration();
+
+    // STEP 5: Store OTP in database
+    await OTP.findOneAndUpdate(
+      { email },
+      { otp, expiresAt, verified: false },
+      { upsert: true, new: true }
+    );
+
+    // TODO: Send OTP to email (implement email service later)
+    console.log(`[DEBUG] OTP for ${email}: ${otp}`);
 
     return res.status(201).json({
       success: true,
-      message: 'User registered successfully',
+      message: 'User registered successfully. OTP sent to email',
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         phone: user.phone,
         role: user.role,
+        isVerified: user.isVerified,
       },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+/**
+ * Verify OTP
+ * POST /api/auth/verify-otp
+ */
+const verifyOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+
+    // Validation
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email and OTP',
+      });
+    }
+
+    // Find OTP record
+    const otpRecord = await OTP.findOne({ email });
+    if (!otpRecord) {
+      return res.status(400).json({
+        success: false,
+        message: 'OTP not found or expired',
+      });
+    }
+
+    // Check if OTP is expired
+    if (!isOTPValid(otpRecord.expiresAt)) {
+      await OTP.deleteOne({ email });
+      return res.status(400).json({
+        success: false,
+        message: 'OTP has expired',
+      });
+    }
+
+    // Verify OTP code
+    if (otpRecord.otp !== otp) {
+      otpRecord.attempts += 1;
+      if (otpRecord.attempts >= 3) {
+        await OTP.deleteOne({ email });
+        return res.status(400).json({
+          success: false,
+          message: 'Too many failed attempts. Please register again',
+        });
+      }
+      await otpRecord.save();
+      return res.status(400).json({
+        success: false,
+        message: `Invalid OTP. ${3 - otpRecord.attempts} attempts remaining`,
+      });
+    }
+
+    // Mark user as verified
+    const user = await User.findOneAndUpdate(
+      { email },
+      { isVerified: true },
+      { new: true }
+    );
+
+    // Delete OTP record
+    await OTP.deleteOne({ email });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Email verified successfully',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        isVerified: user.isVerified,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Resend OTP
+ * POST /api/auth/resend-otp
+ */
+const resendOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email',
+      });
+    }
+
+    // Check if user exists
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email already verified',
+      });
+    }
+
+    // Generate and store new OTP
+    const otp = generateOTP();
+    const expiresAt = getOTPExpiration();
+
+    await OTP.findOneAndUpdate(
+      { email },
+      { otp, expiresAt, attempts: 0, verified: false },
+      { upsert: true, new: true }
+    );
+
+    // TODO: Send OTP to email
+    console.log(`[DEBUG] Resent OTP for ${email}: ${otp}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'OTP resent successfully',
     });
   } catch (error) {
     return res.status(500).json({
@@ -110,5 +309,7 @@ const login = async (req, res) => {
 
 module.exports = {
   register,
+  verifyOTP,
+  resendOTP,
   login,
 };
