@@ -16,6 +16,7 @@ const { generateOTP, getOTPExpiration, isOTPValid } = require('../utils/otpUtils
 const register = async (req, res) => {
   try {
     const { name, email, phone, password, confirmPassword } = req.body;
+    console.log(req.body)
 
     // STEP 1: Validate input
     if (!name || !email || !phone || !password || !confirmPassword) {
