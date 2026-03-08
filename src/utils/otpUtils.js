@@ -9,11 +9,11 @@ const generateOTP = () => {
 };
 
 /**
- * Generate expiration time (10 minutes from now)
+ * Generate expiration time (5 minutes from now)
  * @returns {Date} - Expiration date
  */
 const getOTPExpiration = () => {
-  return new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  return new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
 };
 
 /**
