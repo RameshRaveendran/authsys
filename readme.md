@@ -65,12 +65,53 @@ npm start
 
 2. The server will run on `http://localhost:5000`
 
+## Email Configuration (MailTrap for Development)
+
+### Setup Steps
+
+1. **Create a MailTrap Account:**
+   - Go to [https://mailtrap.io/](https://mailtrap.io/)
+   - Sign up for a free account
+   - Verify your email
+
+2. **Get MailTrap Credentials:**
+   - Log in to MailTrap dashboard
+   - Go to **Sending** → **Integrations**
+   - Select **NodeMailer**
+   - Copy the credentials shown
+
+3. **Configure .env File:**
+   ```env
+   MAILTRAP_HOST=smtp.mailtrap.io
+   MAILTRAP_PORT=2525
+   MAILTRAP_USER=your_username_from_mailtrap
+   MAILTRAP_PASS=your_password_from_mailtrap
+   MAILTRAP_FROM=noreply@authsystem.com
+   ```
+
+4. **Test Email Sending:**
+   - Register a new user via `/api/auth/register`
+   - Check MailTrap inbox at [https://mailtrap.io/](https://mailtrap.io/)
+   - You should receive an OTP email with the format:
+     - **Subject**: Verify Your Account
+     - **Body**: Your OTP is 482193 (6-digit code)
+
+### Email Features
+
+- **OTP Verification Email**: Sent during registration and resend OTP requests
+- **Account Verification Email**: Sent after successful OTP verification
+- **HTML and Text Formats**: Supports both for maximum compatibility
+- **Error Handling**: Gracefully handles email failures
+
 ## API Endpoints
 
 ### Authentication Routes
-- `POST /api/auth/register` - Register a new user
+- `POST /api/auth/register` - Register a new user (sends OTP email)
 - `POST /api/auth/login` - Login user
 - `POST /api/auth/logout` - Logout user
+- `POST /api/auth/verify-otp` - Verify OTP (sends verification email on success)
+- `POST /api/auth/resend-otp` - Resend OTP email
+
 
 ## Technologies Used
 
@@ -86,12 +127,14 @@ npm start
 |----------|-------------|
 | PORT | Server port (default: 5000) |
 | NODE_ENV | Environment (development/production) |
-| DB_HOST | Database host |
-| DB_USER | Database user |
-| DB_PASSWORD | Database password |
-| DB_NAME | Database name |
+| MONGODB_URI | MongoDB connection string |
 | JWT_SECRET | Secret key for JWT tokens |
 | JWT_EXPIRE | Token expiration time |
+| MAILTRAP_HOST | MailTrap SMTP host (smtp.mailtrap.io) |
+| MAILTRAP_PORT | MailTrap SMTP port (2525) |
+| MAILTRAP_USER | MailTrap username |
+| MAILTRAP_PASS | MailTrap password |
+| MAILTRAP_FROM | Email sender address |
 
 ## Contributing
 

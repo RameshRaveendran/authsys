@@ -2,6 +2,7 @@ const User = require('../models/User');
 const OTP = require('../models/OTP');
 const { hashPassword, comparePassword } = require('../utils/passwordUtils');
 const { generateOTP, getOTPExpiration, isOTPValid } = require('../utils/otpUtils');
+const { sendOTPEmail, sendVerificationEmail } = require('../utils/emailUtils');
 
 /**
  * Register a new user
@@ -99,8 +100,13 @@ const register = async (req, res) => {
       { upsert: true, new: true }
     );
 
-    // TODO: Send OTP to email (implement email service later)
-    console.log(`[DEBUG] OTP for ${email}: ${otp}`);
+    // STEP 6: Send OTP to email
+    try {
+      await sendOTPEmail(email, otp);
+    } catch (emailError) {
+      console.error('Email sending failed:', emailError.message);
+      // Continue registration even if email fails
+    }
 
     return res.status(201).json({
       success: true,
@@ -182,6 +188,14 @@ const verifyOTP = async (req, res) => {
     // Delete OTP record
     await OTP.deleteOne({ email });
 
+    // Send verification email
+    try {
+      await sendVerificationEmail(email, user.name);
+    } catch (emailError) {
+      console.error('Verification email failed:', emailError.message);
+      // Continue even if email fails
+    }
+
     return res.status(200).json({
       success: true,
       message: 'Email verified successfully',
@@ -241,8 +255,13 @@ const resendOTP = async (req, res) => {
       { upsert: true, new: true }
     );
 
-    // TODO: Send OTP to email
-    console.log(`[DEBUG] Resent OTP for ${email}: ${otp}`);
+    // Send OTP to email
+    try {
+      await sendOTPEmail(email, otp);
+    } catch (emailError) {
+      console.error('Email sending failed:', emailError.message);
+      // Continue resending even if email fails
+    }
 
     return res.status(200).json({
       success: true,

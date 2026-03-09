@@ -2,12 +2,50 @@
   "info": {
     "_postman_id": "auth-system-collection",
     "name": "Auth System API",
-    "description": "Complete authentication system API collection for testing",
+    "description": "Complete authentication system API collection with Email/OTP verification\n\n## Setup Instructions\n\n1. **Configure MailTrap:**\n   - Sign up at https://mailtrap.io/\n   - Go to Sending > Integrations > NodeMailer\n   - Copy the credentials to .env file\n   - MAILTRAP_HOST: smtp.mailtrap.io\n   - MAILTRAP_PORT: 2525\n   - MAILTRAP_USER: your_username\n   - MAILTRAP_PASS: your_password\n\n2. **Start the Server:**\n   - npm install\n   - npm start (or npm run dev)\n\n3. **Run the Tests:**\n   - Register a new user\n   - Check MailTrap inbox for OTP email\n   - Verify OTP using the email received\n   - Login with verified account",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
       "name": "Register",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Test 1: Check status code is 201",
+              "pm.test(\"Status code is 201\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "// Test 2: Check success is true",
+              "pm.test(\"Success is true\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "",
+              "// Test 3: Check message about OTP",
+              "pm.test(\"Message mentions OTP sent\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.message).to.include(\"OTP sent\");",
+              "});",
+              "",
+              "// Test 4: Check user object in response",
+              "pm.test(\"User object exists with email\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.user).to.have.property('email');",
+              "    pm.expect(jsonData.user.isVerified).to.eql(false);",
+              "});",
+              "",
+              "// Save email to variable for next requests",
+              "var jsonData = pm.response.json();",
+              "pm.globals.set('test_email', jsonData.user.email);",
+              "console.log('Registered email: ' + jsonData.user.email);"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
       "request": {
         "method": "POST",
         "header": [
@@ -19,7 +57,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"phone\": \"9876543210\",\n  \"password\": \"password123\",\n  \"confirmPassword\": \"password123\"\n}"
+          "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"testuser@mailinator.com\",\n  \"phone\": \"9876543210\",\n  \"password\": \"TestPass123\",\n  \"confirmPassword\": \"TestPass123\"\n}"
         },
         "url": {
           "raw": "http://localhost:5000/api/auth/register",
@@ -32,6 +70,38 @@
     },
     {
       "name": "Verify OTP",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Test 1: Check status code is 200",
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "// Test 2: Check success is true",
+              "pm.test(\"Success is true\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "",
+              "// Test 3: Check message",
+              "pm.test(\"Message is 'Email verified successfully'\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.message).to.include(\"verified\");",
+              "});",
+              "",
+              "// Test 4: Check user is verified",
+              "pm.test(\"User isVerified is true\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.user.isVerified).to.eql(true);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
       "request": {
         "method": "POST",
         "header": [
@@ -43,7 +113,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"email\": \"john@example.com\",\n  \"otp\": \"123456\"\n}"
+          "raw": "{\n  \"email\": \"testuser@mailinator.com\",\n  \"otp\": \"123456\"\n}\n\n/* \n  IMPORTANT: Replace OTP with actual OTP received in email\n  1. After registering, check MailTrap inbox (https://mailtrap.io/)\n  2. Look for email with subject: \"Verify Your Account\"\n  3. Copy the 6-digit OTP from the email\n  4. Paste it in the OTP field above\n*/"
         },
         "url": {
           "raw": "http://localhost:5000/api/auth/verify-otp",
@@ -56,6 +126,32 @@
     },
     {
       "name": "Resend OTP",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Test 1: Check status code is 200",
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "// Test 2: Check success is true",
+              "pm.test(\"Success is true\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "",
+              "// Test 3: Check OTP resent message",
+              "pm.test(\"Message mentions 'resent'\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.message).to.include(\"resent\");",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
       "request": {
         "method": "POST",
         "header": [
@@ -67,7 +163,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"email\": \"john@example.com\"\n}"
+          "raw": "{\n  \"email\": \"testuser@mailinator.com\"\n}"
         },
         "url": {
           "raw": "http://localhost:5000/api/auth/resend-otp",
@@ -80,6 +176,39 @@
     },
     {
       "name": "Login",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Test 1: Check status code is 200",
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "// Test 2: Check success is true",
+              "pm.test(\"Success is true\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "",
+              "// Test 3: Check login message",
+              "pm.test(\"Login message is 'Login successful'\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.message).to.eql(\"Login successful\");",
+              "});",
+              "",
+              "// Test 4: Check user object in response",
+              "pm.test(\"Response contains user object\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.user).to.have.property('email');",
+              "    pm.expect(jsonData.user).to.have.property('name');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
       "request": {
         "method": "POST",
         "header": [
@@ -91,7 +220,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\"\n}"
+          "raw": "{\n  \"email\": \"testuser@mailinator.com\",\n  \"password\": \"TestPass123\"\n}"
         },
         "url": {
           "raw": "http://localhost:5000/api/auth/login",
