@@ -5,6 +5,7 @@ const rateLimit = require('express-rate-limit');
 const { connectDB } = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const protectedRoutes = require('./routes/protectedRoutes');
+const { errorHandler } = require('./middleware/errorMiddleware');
 
 const app = express();
 
@@ -50,11 +51,8 @@ app.use('/api/auth', (req, res, next) => {
 }, authRoutes);
 app.use('/api/protected', protectedRoutes);
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: err.message });
-});
+// Error handling middleware (must be last)
+app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
