@@ -462,6 +462,157 @@ const logout = async (req, res) => {
   }
 };
 
+/**
+ * Forgot Password - Send reset token to email
+ * POST /api/auth/forgot-password
+ */
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Validation
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide email',
+      });
+    }
+
+    // Find user
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Generate reset token (6-digit code for simplicity)
+    const resetToken = Math.floor(100000 + Math.random() * 900000).toString();
+    const resetTokenExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    // Save reset token to user
+    await User.findByIdAndUpdate(
+      user._id,
+      {
+        resetToken,
+        resetTokenExpiry,
+      },
+      { new: true }
+    );
+
+    // Send reset email
+    try {
+      const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password/${resetToken}`;
+      await sendOTPEmail(email, resetToken); // Reusing OTP email template for reset code
+      console.log(`Password reset link: ${resetLink}`);
+    } catch (emailError) {
+      console.error('Reset email failed:', emailError.message);
+      // Continue even if email fails
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Password reset code sent to email',
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Reset Password - Verify reset token and update password
+ * POST /api/auth/reset-password
+ */
+const resetPassword = async (req, res) => {
+  try {
+    const { email, resetToken, newPassword, confirmPassword } = req.body;
+
+    // Validation
+    if (!email || !resetToken || !newPassword || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide all required fields',
+      });
+    }
+
+    // Validate password match
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Passwords do not match',
+      });
+    }
+
+    // Validate password strength
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters',
+      });
+    }
+
+    // Find user
+    const user = await User.findOne({ email }).select('+resetToken +resetTokenExpiry');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Verify reset token
+    if (user.resetToken !== resetToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid reset token',
+      });
+    }
+
+    // Check if reset token is expired
+    if (new Date() > new Date(user.resetTokenExpiry)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Reset token has expired',
+      });
+    }
+
+    // Hash new password
+    const passwordHash = await hashPassword(newPassword);
+
+    // Update password and clear reset token
+    await User.findByIdAndUpdate(
+      user._id,
+      {
+        passwordHash,
+        resetToken: null,
+        resetTokenExpiry: null,
+      },
+      { new: true }
+    );
+
+    // Send password reset confirmation email
+    try {
+      await sendVerificationEmail(email, user.name);
+    } catch (emailError) {
+      console.error('Confirmation email failed:', emailError.message);
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Password reset successfully',
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   register,
   verifyOTP,
@@ -469,4 +620,6 @@ module.exports = {
   login,
   refreshAccessToken,
   logout,
+  forgotPassword,
+  resetPassword,
 };
