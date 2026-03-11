@@ -3,6 +3,7 @@ const OTP = require('../models/OTP');
 const { hashPassword, comparePassword } = require('../utils/passwordUtils');
 const { generateOTP, getOTPExpiration, isOTPValid } = require('../utils/otpUtils');
 const { sendOTPEmail, sendVerificationEmail } = require('../utils/emailUtils');
+const { generateAccessToken, generateRefreshToken, verifyRefreshToken } = require('../utils/tokenUtils');
 
 /**
  * Register a new user
@@ -278,12 +279,19 @@ const resendOTP = async (req, res) => {
 /**
  * Login user
  * POST /api/auth/login
+ * Flow:
+ * 1. Validate input
+ * 2. Find user by email
+ * 3. Compare password with bcrypt
+ * 4. Check if email is verified
+ * 5. Generate tokens
+ * 6. Store refresh token in database
  */
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Validation
+    // STEP 1: Validate input
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -291,7 +299,7 @@ const login = async (req, res) => {
       });
     }
 
-    // Find user
+    // STEP 2: Find user by email
     const user = await User.findOne({ email }).select('+passwordHash');
     if (!user) {
       return res.status(401).json({
@@ -300,7 +308,7 @@ const login = async (req, res) => {
       });
     }
 
-    // Compare passwords
+    // STEP 3: Compare password with bcrypt
     const isPasswordValid = await comparePassword(password, user.passwordHash);
     if (!isPasswordValid) {
       return res.status(401).json({
@@ -309,15 +317,142 @@ const login = async (req, res) => {
       });
     }
 
+    // STEP 4: Check if email is verified
+    if (!user.isVerified) {
+      return res.status(403).json({
+        success: false,
+        message: 'Please verify your email before logging in',
+      });
+    }
+
+    // STEP 5: Generate tokens
+    const accessToken = generateAccessToken(user._id, user.email, user.role);
+    const refreshToken = generateRefreshToken(user._id);
+
+    // STEP 6: Store refresh token in database
+    await User.findByIdAndUpdate(
+      user._id,
+      { refreshToken },
+      { new: true }
+    );
+
     return res.status(200).json({
       success: true,
       message: 'Login successful',
+      tokens: {
+        accessToken,
+        refreshToken,
+      },
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
+        isVerified: user.isVerified,
       },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Refresh access token
+ * POST /api/auth/refresh-token
+ */
+const refreshAccessToken = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    // Validate refresh token input
+    if (!refreshToken) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide refresh token',
+      });
+    }
+
+    // Verify refresh token
+    const decoded = verifyRefreshToken(refreshToken);
+    if (!decoded) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired refresh token',
+      });
+    }
+
+    // Find user
+    const user = await User.findById(decoded.id);
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not found',
+      });
+    }
+
+    // Check if refresh token matches stored token
+    if (user.refreshToken !== refreshToken) {
+      return res.status(401).json({
+        success: false,
+        message: 'Refresh token mismatch',
+      });
+    }
+
+    // Generate new access token
+    const newAccessToken = generateAccessToken(user._id, user.email, user.role);
+
+    // Optional: Generate new refresh token (rotate refresh tokens for security)
+    const newRefreshToken = generateRefreshToken(user._id);
+    await User.findByIdAndUpdate(
+      user._id,
+      { refreshToken: newRefreshToken },
+      { new: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Token refreshed successfully',
+      tokens: {
+        accessToken: newAccessToken,
+        refreshToken: newRefreshToken,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * Logout user
+ * POST /api/auth/logout
+ */
+const logout = async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide user ID',
+      });
+    }
+
+    // Clear refresh token from database
+    await User.findByIdAndUpdate(
+      userId,
+      { refreshToken: null },
+      { new: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: 'Logout successful',
     });
   } catch (error) {
     return res.status(500).json({
@@ -332,4 +467,6 @@ module.exports = {
   verifyOTP,
   resendOTP,
   login,
+  refreshAccessToken,
+  logout,
 };

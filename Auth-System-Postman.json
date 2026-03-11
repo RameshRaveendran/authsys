@@ -198,12 +198,27 @@
               "    pm.expect(jsonData.message).to.eql(\"Login successful\");",
               "});",
               "",
-              "// Test 4: Check user object in response",
-              "pm.test(\"Response contains user object\", function () {",
+              "// Test 4: Check tokens in response",
+              "pm.test(\"Response contains JWT tokens\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.tokens).to.have.property('accessToken');",
+              "    pm.expect(jsonData.tokens).to.have.property('refreshToken');",
+              "});",
+              "",
+              "// Test 5: Check user object",
+              "pm.test(\"Response contains user object with verified status\", function () {",
               "    var jsonData = pm.response.json();",
               "    pm.expect(jsonData.user).to.have.property('email');",
               "    pm.expect(jsonData.user).to.have.property('name');",
-              "});"
+              "    pm.expect(jsonData.user.isVerified).to.eql(true);",
+              "});",
+              "",
+              "// Save tokens to global variables for subsequent requests",
+              "var jsonData = pm.response.json();",
+              "pm.globals.set('accessToken', jsonData.tokens.accessToken);",
+              "pm.globals.set('refreshToken', jsonData.tokens.refreshToken);",
+              "pm.globals.set('userId', jsonData.user.id);",
+              "console.log('Access Token saved: ' + jsonData.tokens.accessToken.substring(0, 20) + '...');"
             ],
             "type": "text/javascript"
           }
@@ -228,6 +243,118 @@
           "host": ["localhost"],
           "port": "5000",
           "path": ["api", "auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "Refresh Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Test 1: Check status code is 200",
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "// Test 2: Check success is true",
+              "pm.test(\"Success is true\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "",
+              "// Test 3: Check tokens in response",
+              "pm.test(\"Response contains new JWT tokens\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.tokens).to.have.property('accessToken');",
+              "    pm.expect(jsonData.tokens).to.have.property('refreshToken');",
+              "});",
+              "",
+              "// Update tokens",
+              "var jsonData = pm.response.json();",
+              "pm.globals.set('accessToken', jsonData.tokens.accessToken);",
+              "pm.globals.set('refreshToken', jsonData.tokens.refreshToken);",
+              "console.log('Tokens refreshed successfully');"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}\n\n/*\n  IMPORTANT: Use the refreshToken from login response\n  The global variable {{refreshToken}} will be auto-filled if Login request was run first\n*/"
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/auth/refresh-token",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "auth", "refresh-token"]
+        }
+      }
+    },
+    {
+      "name": "Logout",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "// Test 1: Check status code is 200",
+              "pm.test(\"Status code is 200\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "// Test 2: Check success is true",
+              "pm.test(\"Success is true\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "});",
+              "",
+              "// Test 3: Check logout message",
+              "pm.test(\"Message is 'Logout successful'\", function () {",
+              "    var jsonData = pm.response.json();",
+              "    pm.expect(jsonData.message).to.eql(\"Logout successful\");",
+              "});",
+              "",
+              "// Clear tokens from globals",
+              "pm.globals.unset('accessToken');",
+              "pm.globals.unset('refreshToken');",
+              "console.log('User logged out and tokens cleared');"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userId\": \"{{userId}}\"\n}\n\n/*\n  IMPORTANT: Use the userId from login response\n  The global variable {{userId}} will be auto-filled if Login request was run first\n*/"
+        },
+        "url": {
+          "raw": "http://localhost:5000/api/auth/logout",
+          "protocol": "http",
+          "host": ["localhost"],
+          "port": "5000",
+          "path": ["api", "auth", "logout"]
         }
       }
     }
