@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require("express");
+const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { connectDB } = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
@@ -25,6 +26,7 @@ const generalLimiter = rateLimit({
 });
 
 // Middleware
+app.use(helmet()); // Security headers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(generalLimiter); // Apply general rate limiter to all routes
