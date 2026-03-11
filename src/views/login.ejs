@@ -1,0 +1,45 @@
+<%- include('header') %>
+<div class="container">
+    <h1>Login</h1>
+    <form id="loginForm">
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="email" required>
+        </div>
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="password" required>
+        </div>
+        <button type="submit" class="btn">Login</button>
+    </form>
+    <div class="link-section">
+        Don't have an account? <a href="/register">Register here</a>
+        <div style="margin-top: 0.5rem;">
+            <a href="/forgot-password">Forgot password?</a>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const data = {
+            email: document.getElementById('email').value,
+            password: document.getElementById('password').value,
+        };
+
+        const result = await apiCall('POST', '/auth/login', data);
+        
+        if (result.success) {
+            localStorage.setItem('accessToken', result.tokens.accessToken);
+            localStorage.setItem('refreshToken', result.tokens.refreshToken);
+            localStorage.setItem('userId', result.user.id);
+            alert('Login successful!');
+            window.location.href = '/dashboard';
+        } else {
+            alert('Login failed: ' + result.message);
+        }
+    });
+</script>
+<%- include('footer') %>

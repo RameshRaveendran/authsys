@@ -1,0 +1,32 @@
+<%- include('header') %>
+<div class="container">
+    <h1>Dashboard</h1>
+    <div class="navbar" style="margin: 0;">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/profile">Profile</a>
+        <a onclick="handleLogout()" style="cursor: pointer;">Logout</a>
+    </div>
+    
+    <div class="user-info">
+        <h2>Welcome back, <% if (user) { %><%= user.email %><% } %></h2>
+        <p><strong>Role:</strong> <% if (user) { %><%= user.role %><% } %></p>
+    </div>
+
+    <h2>Your Information</h2>
+    <div class="user-info">
+        <p><strong>Email:</strong> <% if (user) { %><%= user.email %><% } %></p>
+        <p><strong>User ID:</strong> <% if (user) { %><%= user.id %><% } %></p>
+        <p><strong>Role:</strong> <% if (user) { %><%= user.role %><% } %></p>
+    </div>
+
+    <div style="text-align: center; margin-top: 2rem;">
+        <a href="/profile" class="btn" style="display: inline-block; text-decoration: none; width: auto; padding: 0.75rem 1.5rem;">
+            View Profile
+        </a>
+        <button type="button" class="btn btn-secondary" onclick="handleLogout()" style="display: inline-block; width: auto; padding: 0.75rem 1.5rem; margin-left: 1rem;">
+            Logout
+        </button>
+    </div>
+</div>
+
+<%- include('footer') %>

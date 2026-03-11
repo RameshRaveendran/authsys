@@ -1,0 +1,39 @@
+<%- include('header') %>
+<div class="container">
+    <h1>Profile</h1>
+    <div class="navbar" style="margin: 0;">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/profile">Profile</a>
+        <a onclick="handleLogout()" style="cursor: pointer;">Logout</a>
+    </div>
+    
+    <div class="user-info">
+        <h2>Your Profile</h2>
+    </div>
+
+    <div class="form-group">
+        <label>Email</label>
+        <input type="email" value="<% if (user) { %><%= user.email %><% } %>" disabled>
+    </div>
+
+    <div class="form-group">
+        <label>User ID</label>
+        <input type="text" value="<% if (user) { %><%= user.id %><% } %>" disabled>
+    </div>
+
+    <div class="form-group">
+        <label>Role</label>
+        <input type="text" value="<% if (user) { %><%= user.role %><% } %>" disabled>
+    </div>
+
+    <div style="text-align: center; margin-top: 2rem;">
+        <a href="/dashboard" class="btn" style="display: inline-block; text-decoration: none; width: auto; padding: 0.75rem 1.5rem;">
+            Back to Dashboard
+        </a>
+        <button type="button" class="btn btn-secondary" onclick="handleLogout()" style="display: inline-block; width: auto; padding: 0.75rem 1.5rem; margin-left: 1rem;">
+            Logout
+        </button>
+    </div>
+</div>
+
+<%- include('footer') %>

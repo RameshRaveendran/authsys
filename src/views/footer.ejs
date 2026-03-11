@@ -1,0 +1,70 @@
+    <script>
+        // Helper function to make API calls
+        async function apiCall(method, endpoint, data = {}) {
+            const token = localStorage.getItem('accessToken');
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            };
+
+            if (token) {
+                options.headers['Authorization'] = `Bearer ${token}`;
+            }
+
+            if (data && Object.keys(data).length > 0) {
+                options.body = JSON.stringify(data);
+            }
+
+            try {
+                const response = await fetch(`/api${endpoint}`, options);
+                const result = await response.json();
+                
+                if (!response.ok && result.message === 'Invalid or expired token') {
+                    // Try to refresh token
+                    const refreshToken = localStorage.getItem('refreshToken');
+                    if (refreshToken) {
+                        const refreshResponse = await fetch('/api/auth/refresh-token', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ refreshToken }),
+                        });
+                        const refreshData = await refreshResponse.json();
+                        if (refreshResponse.ok) {
+                            localStorage.setItem('accessToken', refreshData.tokens.accessToken);
+                            localStorage.setItem('refreshToken', refreshData.tokens.refreshToken);
+                            // Retry original request
+                            return apiCall(method, endpoint, data);
+                        }
+                    }
+                }
+                
+                return result;
+            } catch (error) {
+                console.error('API call failed:', error);
+                return { success: false, message: error.message };
+            }
+        }
+
+        // Handle logout
+        function handleLogout() {
+            const userId = localStorage.getItem('userId');
+            if (userId) {
+                apiCall('POST', '/auth/logout', { userId }).then(() => {
+                    localStorage.removeItem('accessToken');
+                    localStorage.removeItem('refreshToken');
+                    localStorage.removeItem('userId');
+                    window.location.href = '/login';
+                });
+            }
+        }
+
+        // Check authentication status
+        function checkAuth() {
+            const token = localStorage.getItem('accessToken');
+            return !!token;
+        }
+    </script>
+</body>
+</html>

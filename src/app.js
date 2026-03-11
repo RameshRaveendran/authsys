@@ -2,13 +2,19 @@ require('dotenv').config();
 const express = require("express");
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 const { connectDB } = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const protectedRoutes = require('./routes/protectedRoutes');
+const pagesRoutes = require('./routes/pages');
 const { errorHandler } = require('./middleware/errorMiddleware');
 const { requestLogger } = require('./utils/logger');
 
 const app = express();
+
+// View engine setup
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
 
 // Rate limiting middleware
 const loginLimiter = rateLimit({
@@ -31,6 +37,7 @@ const generalLimiter = rateLimit({
 app.use(helmet()); // Security headers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'public'))); // Static files
 app.use(generalLimiter); // Apply general rate limiter to all routes
 app.use(requestLogger); // Logging middleware
 
@@ -39,8 +46,11 @@ connectDB();
 
 // Routes
 app.get("/", (req, res) => {
-  res.send("Authentication System Running");
+  res.render('index', { title: 'Auth System' });
 });
+
+// Page routes
+app.use('/', pagesRoutes);
 
 // API Routes
 app.use('/api/auth', (req, res, next) => {
