@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require("express");
 const { connectDB } = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
+const protectedRoutes = require('./routes/protectedRoutes');
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.get("/", (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/protected', protectedRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
