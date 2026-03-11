@@ -6,6 +6,7 @@ const { connectDB } = require('./config/db');
 const authRoutes = require('./routes/authRoutes');
 const protectedRoutes = require('./routes/protectedRoutes');
 const { errorHandler } = require('./middleware/errorMiddleware');
+const { requestLogger } = require('./utils/logger');
 
 const app = express();
 
@@ -31,6 +32,7 @@ app.use(helmet()); // Security headers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(generalLimiter); // Apply general rate limiter to all routes
+app.use(requestLogger); // Logging middleware
 
 // Connect to MongoDB
 connectDB();
